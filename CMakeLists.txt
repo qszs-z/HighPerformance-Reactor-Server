@@ -40,5 +40,5 @@ target_link_libraries(BankServer PRIVATE Threads::Threads)
 # 4. 编译客户端
 # ========================================================
 add_executable(BankClient 
-    src/BankClient1.cpp  
+    src/BankClient.cpp  
 )

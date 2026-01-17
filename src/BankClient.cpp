@@ -1,4 +1,4 @@
-﻿// 网络通讯的客户端程序。
+﻿// 网上银行业务的客户端程序
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
@@ -9,66 +9,106 @@
 #include <arpa/inet.h>
 #include <ctime>
 #include <iostream>
-//加C字母是(C++ 风格)
+
+// 发送报文，支持4字节的报头。
+ssize_t tcpsend(int fd, void* data, size_t size)
+{
+    char tmpbuf[1024];                    // 临时的buffer，报文头部+报文内容。
+    memset(tmpbuf, 0, sizeof(tmpbuf));
+    memcpy(tmpbuf, &size, 4);         // 拼接报文头部。
+    memcpy(tmpbuf + 4, data, size);  // 拼接报文内容。
+
+    return send(fd, tmpbuf, size + 4, 0);        // 把请求报文发送给服务端。
+}
+
+// 接收报文，支持4字节的报头。
+ssize_t tcprecv(int fd, void* data)
+{
+    int len;
+    recv(fd, &len, 4, 0);            // 先读取4字节的报文头部。
+    return recv(fd, data, len, 0);           // 读取报文内容。
+}
+
 int main(int argc, char* argv[])
 {
-	if (argc != 3)
-	{
+    if (argc != 3)
+    {
 		printf("usage:./TcpClient ip port\n");
 		printf("example:./TcpClient 127.0.0.1 8152\n\n");
-		return -1;
-	}
+        return -1;
+    }
 
-	int sockfd;
-	struct sockaddr_in servaddr;
-	char buf[1024];
+    int sockfd;
+    struct sockaddr_in servaddr;
+    char buf[1024];
 
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) { printf("socket() failed.\n"); return -1; }
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) { printf("socket() failed.\n"); return -1; }
 
-	memset(&servaddr, 0, sizeof(servaddr));
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(atoi(argv[2]));
-	servaddr.sin_addr.s_addr = inet_addr(argv[1]);
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(atoi(argv[2]));
+    servaddr.sin_addr.s_addr = inet_addr(argv[1]);
 
-	if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0)
-	{
-		printf("connect(%s:%s) failed.\n", argv[1], argv[2]); close(sockfd);  return -1;
-	}
-	std::cout << "connection ok" << std::endl;
-	std::cout << "开始时间：" << time(nullptr) << std::endl;
-	//报文头部
-	
-	for (int ii = 0; ii < 100000; ii++)
-	{
-/// 从命令行输入内容。
-		memset(buf, 0, sizeof(buf));
-		//printf("please input:"); scanf("%s", buf);
-		sprintf(buf, "这是第%d个妮巧。",ii);
-		char tmpbuf[1024];
-		memset(tmpbuf, 0, sizeof(tmpbuf));
-		int len = strlen(buf);
-		memcpy(tmpbuf, &len, 4);
-		memcpy(tmpbuf + 4, &buf, len);
+    if (connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) != 0)
+    {
+        printf("connect(%s:%s) failed.\n", argv[1], argv[2]); close(sockfd);  return -1;
+    }
 
-		send(sockfd, tmpbuf, len + 4, 0);      // 把命令行输入的内容发送给服务端。
+    printf("connect ok.\n");
 
-		recv(sockfd, &len, 4,0);   //先读取报文头部
-		memset(buf, 0, sizeof(buf));
-		recv(sockfd, buf, len, 0);    //再读报文剩下的 // 接收服务端的回应。
-		//printf("recv:%s\n", buf);
+    //////////////////////////////////////////
+    // 登录业务。
+    memset(buf, 0, sizeof(buf));
+    sprintf(buf, "<bizcode>00101</bizcode><username>zqz</username><password>123456</password>");
+    if (tcpsend(sockfd, buf, strlen((buf))) <= 0) { printf("tcpsend() failed.\n"); return -1; }
+    printf("发送：%s\n", buf);
 
-	}
-	std::cout << "结束时间：" << time(nullptr) << std::endl;
+    memset(buf, 0, sizeof(buf));
+    if (tcprecv(sockfd, buf) <= 0) { printf("tcprecv() failed.\n"); return -1; }
+    printf("接收：%s\n", buf);
+    //////////////////////////////////////////
+
+    ////////////////////////////////////////////
+    // 查询余额业务。
+    memset(buf, 0, sizeof(buf));
+    sprintf(buf, "<bizcode>00201</bizcode><cardid>1234567890</cardid>");
+    if (tcpsend(sockfd, buf, strlen((buf))) <= 0) { printf("tcpsend() failed.\n"); return -1; }
+    printf("发送：%s\n", buf);
+
+    memset(buf, 0, sizeof(buf));
+    if (tcprecv(sockfd, buf) <= 0) { printf("tcprecv() failed.\n"); return -1; }
+    printf("接收：%s\n", buf);
+    //sleep(21);  客户端不想超时就要设置心跳  发送心跳报文
+    ////////////////////////////////////////////
+
+    //////////////////////////////////////////
+    // 心跳。
+    while (true)
+    {
+        memset(buf,0,sizeof(buf));
+        sprintf(buf,"<bizcode>00001</bizcode>");
+        if (tcpsend(sockfd,buf,strlen((buf))) <=0) { printf("tcpsend() failed.\n"); return -1; }
+        printf("发送：%s\n",buf);
+
+        memset(buf,0,sizeof(buf));
+        if (tcprecv(sockfd,buf) <=0) { printf("tcprecv() failed.\n"); return -1; }
+        printf("接收：%s\n",buf);
+
+        sleep(5);
+    }
+    //////////////////////////////////////////
 
 
-	//无报文头部的
-	/*for (int i = 0; i < 10; i++) {
-		memset(buf, 0, sizeof(buf));
-		sprintf(buf, "这是第%d个妮巧。", i);
-		send(sockfd, buf, strlen(buf), 0);
-		memset(buf, 0, sizeof(buf));
-		recv(sockfd, buf, 1024, 0);
-		printf("recv:%s\n", buf);
-		sleep(1);
-	}*/
+//////////////////////////////////////////
+    // 注销业务。
+       memset(buf, 0, sizeof(buf));
+       sprintf(buf, "<bizcode>00901</bizcode>");
+        if (tcpsend(sockfd, buf, strlen((buf))) <= 0) { printf("tcpsend() failed.\n"); return -1; }
+       printf("发送：%s\n", buf);
+
+        memset(buf, 0, sizeof(buf));
+        if (tcprecv(sockfd, buf) <= 0) { printf("tcprecv() failed.\n"); return -1; }
+        printf("接收：%s\n", buf);
+    //////////////////////////////////////////
 }
+
