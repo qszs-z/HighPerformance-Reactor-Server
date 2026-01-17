@@ -230,8 +230,14 @@ void TcpServer::removeconn(int fd)
 	{
 		std::lock_guard<std::mutex> gd(mmutex_);
 		conns_.erase(fd);//从map中删除conn.
+		//还得删除状态机
+
 	}
-	
+	if (removeconnetioncb_) removeconnetioncb_(fd);
+}
+void TcpServer::setremoveconnetioncb(std::function<void(int)> fn)
+{
+	 removeconnetioncb_ = fn;
 }
 //既然系统都有缓冲区了，为什么我们还要自己在 TcpConnection 里搞个 InputBuffer 和 OutputBuffer？
 // 这不是脱裤子放屁——多此一举吗？

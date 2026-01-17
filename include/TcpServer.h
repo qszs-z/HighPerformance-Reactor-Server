@@ -41,6 +41,8 @@ private:
 	std::function<void(spConnection)> sendcompletecb_;
 	std::function<void(EventLoop* loop)> timeoutcb_;
 
+	std::function<void(int)> removeconnetioncb_;    //BankServer::HandleRemove
+
 	uint16_t sep_;   //报文格式    // 这里需要存一下，因为 Connection 是后来才创建的
 public:
 	TcpServer(const std::string& ip, const uint16_t port,int threadnum = 3, uint16_t sep = 1);
@@ -66,6 +68,7 @@ public:
 	void settimeoutcb(std::function<void(EventLoop* loop)>fn);
 
 	void removeconn(int fd);
+	void setremoveconnetioncb(std::function<void(int)>fn);
 };
 
 //🟢 第一步：打包（Runtime - 绑定时）

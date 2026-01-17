@@ -16,8 +16,8 @@ find_package(Threads REQUIRED)
 include_directories(include)
 
 # 2. 编译服务端
-add_executable(TcpServer 
-    "src/main.cpp" 
+add_executable(BankServer 
+    "src/bankmain.cpp" 
     src/InetAddress.cpp 
     src/Socket.cpp
     src/Epoll.cpp
@@ -27,18 +27,18 @@ add_executable(TcpServer
     src/Acceptor.cpp
     src/Connection.cpp
     src/Buffer.cpp
-    src/EchoServer.cpp 
+    src/BankServer.cpp 
     src/ThreadPool.cpp
     src/Timestamp.cpp;
 )
 
 # 【关键】链接线程库到 Server
 # Threads::Threads 是 CMake 的抽象目标，不用管它底层是 -lpthread 还是啥
-target_link_libraries(TcpServer PRIVATE Threads::Threads)
+target_link_libraries(BankServer PRIVATE Threads::Threads)
 
 # ========================================================
 # 4. 编译客户端
 # ========================================================
-add_executable(TcpClient 
-    src/TcpClient.cpp  
+add_executable(BankClient 
+    src/BankClient1.cpp  
 )
